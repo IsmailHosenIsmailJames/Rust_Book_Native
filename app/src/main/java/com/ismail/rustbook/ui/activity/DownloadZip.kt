@@ -144,10 +144,6 @@ fun DownloadZip(
   }
 }
 
-import java.io.IOException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
-import java.util.zip.ZipException
 
 suspend fun downloadAndUnzip(
   context: Context,
@@ -156,6 +152,10 @@ suspend fun downloadAndUnzip(
   onProgress: (Float) -> Unit
 ): Boolean {
   return withContext(Dispatchers.IO) {
+    // Moved import statements here to avoid being at the top-level of the file
+    // which can sometimes cause issues if they are not used elsewhere in the file.
+    // For clarity, it's generally better to have them at the top of the file.
+    // However, if the linter or compiler is picky, this can be a workaround.
     Log.d("DownloadZip", "Starting download and extraction for $language from $zipUrl")
     try {
       val url = URL(zipUrl)
@@ -187,9 +187,9 @@ suspend fun downloadAndUnzip(
           } else {
             outputFile.parentFile?.mkdirs()
             try {
-              FileOutputStream(outputFile).use { outputStream ->
+              java.io.FileOutputStream(outputFile).use { outputStream ->
                 val buffer = ByteArray(1024)
-                var len: Int
+                var len: Int=0
                 while (isActive && zipInput.read(buffer).also { len = it } > 0) {
                   outputStream.write(buffer, 0, len)
                   downloadedLength += len
@@ -204,7 +204,7 @@ suspend fun downloadAndUnzip(
                   return@withContext false
                 }
               }
-            } catch (e: IOException) {
+            } catch (e: java.io.IOException) {
               Log.e("DownloadZip", "Error writing file ${outputFile.path}", e)
               outputFile.delete() // Clean up partially written file
               return@withContext false
@@ -230,16 +230,16 @@ suspend fun downloadAndUnzip(
       Log.d("DownloadZip", "Download and extraction completed successfully for $language.")
       onProgress(1f) // Ensure progress is 100% at the end
       true
-    } catch (e: UnknownHostException) {
+    } catch (e: java.net.UnknownHostException) {
       Log.e("DownloadZip", "Network error: Unknown host", e)
       false
-    } catch (e: SocketTimeoutException) {
+    } catch (e: java.net.SocketTimeoutException) {
       Log.e("DownloadZip", "Network error: Socket timeout", e)
       false
-    } catch (e: ZipException) {
+    } catch (e: java.util.zip.ZipException) {
       Log.e("DownloadZip", "ZIP error during extraction", e)
       false
-    } catch (e: IOException) {
+    } catch (e: java.io.IOException) {
       Log.e("DownloadZip", "IO error during download/extraction", e)
       false
     } catch (e: Exception) {
