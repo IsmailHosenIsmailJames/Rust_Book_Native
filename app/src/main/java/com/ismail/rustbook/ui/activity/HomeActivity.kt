@@ -5,6 +5,8 @@ import android.content.Context
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.background
@@ -330,6 +332,14 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
             settings.allowFileAccess = true
             settings.allowContentAccess = true
             settings.domStorageEnabled = true
+
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_AUTO)
+            }
+
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK_STRATEGY)) {
+                WebSettingsCompat.setForceDarkStrategy(settings, WebSettingsCompat.DARK_STRATEGY_USER_AGENT_DARKENING_ONLY)
+            }
 
             // Setup Javascript Interface
             val webAppInterface = WebAppInterface(context, currentScrollY, currentScrollX, currentPageTitle)

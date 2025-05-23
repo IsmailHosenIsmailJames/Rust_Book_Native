@@ -62,4 +62,7 @@ dependencies {
   implementation(libs.androidx.room.runtime)
   implementation(libs.androidx.room.ktx)
   ksp(libs.androidx.room.compiler)
+
+  // WebView
+  implementation("androidx.webkit:webkit:1.9.0")
 }
