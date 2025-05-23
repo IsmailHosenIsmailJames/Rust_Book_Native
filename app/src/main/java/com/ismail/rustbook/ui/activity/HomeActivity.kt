@@ -56,6 +56,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import java.io.File
 
@@ -103,11 +104,15 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
         val langDir = File(context.filesDir, currentLanguage)
         if (langDir.exists() && langDir.isDirectory) {
           try {
-            val allHtmlFiles = langDir.walkTopDown()
-              .filter { it.isFile && (it.name.endsWith(".html", true) || it.name.endsWith(".htm", true)) }
-              .toList()
-            searchResults = allHtmlFiles.filter { it.name.contains(searchQuery, true) }
-            Log.d("HomeActivity", "Search results for '$searchQuery': ${searchResults.size} items.")
+                // Combine filters: find HTML/HTM files that also contain the searchQuery in their name.
+                searchResults = langDir.walkTopDown()
+                    .filter { file ->
+                        file.isFile &&
+                        (file.name.endsWith(".html", ignoreCase = true) || file.name.endsWith(".htm", ignoreCase = true)) &&
+                        file.name.contains(searchQuery, ignoreCase = true)
+                    }
+                    .toList() // Collect the results into a list
+                Log.d("HomeActivity", "Search results for '$searchQuery': ${searchResults.size} items.")
           } catch (e: Exception) {
             Log.e("HomeActivity", "Error during file search: ", e)
             searchResults = emptyList()
@@ -147,13 +152,18 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
   DisposableEffect(Unit) {
     onDispose {
       val urlToSave = webViewInstance?.url
-      Log.d("HomeActivity", "DisposableEffect onDispose: currentScrollX = ${currentScrollX.value}, currentScrollY = ${currentScrollY.value}, URL = $urlToSave")
+      val scrollXToSave = currentScrollX.value
+      val scrollYToSave = currentScrollY.value
+
+      Log.d("HomeActivity", "DisposableEffect onDispose: Triggered. URL='$urlToSave', ScrollX (from state)=${scrollXToSave}, ScrollY (from state)=${scrollYToSave}")
+
       if (urlToSave != null && urlToSave != "about:blank" && webViewInstance != null) {
+        Log.d("HomeActivity", "onDispose: Preparing to save state. ScrollX=$scrollXToSave, ScrollY=$scrollYToSave.")
         coroutineScope.launch(Dispatchers.IO) {
-          saveCurrentState(lastPageStateDao, urlToSave, currentScrollX.value, currentScrollY.value, context)
+          saveCurrentState(lastPageStateDao, urlToSave, scrollXToSave, scrollYToSave, context)
         }
       } else {
-        Log.d("HomeActivity", "Not saving state on dispose, URL is null or about:blank, or webViewInstance is null.")
+        Log.d("HomeActivity", "onDispose: Not saving state. URL is null/about:blank or webViewInstance is null. URL='$urlToSave', webViewInstance null?=${webViewInstance == null}")
       }
     }
   }
@@ -307,37 +317,6 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
     }
   ){ paddingValues ->
     Box(
-              }
-              var loadSuccess = false
-              if (preferredHome != null && preferredHome.value.isNotBlank()) {
-                // Assuming preferredHome.value is an absolute path.
-                // If it's a relative path from filesDir, it needs to be resolved.
-                // For this task, we assume it's an absolute path as stored by a potential settings screen.
-                val preferredFile = File(preferredHome.value)
-                if (preferredFile.exists() && preferredFile.isFile && preferredFile.canRead()) {
-                  // webViewUrl state change will trigger recomposition and WebView update
-                  webViewUrl = preferredFile.absolutePath
-                  Log.d("HomeActivity", "Home button: Loading preferred URL: ${preferredFile.absolutePath}")
-                  loadSuccess = true
-                } else {
-                  Log.w("HomeActivity", "Home button: Preferred URL file not found or not readable: ${preferredHome.value}")
-                }
-              }
-
-              if (!loadSuccess) {
-                val defaultFile = File(context.filesDir, rootIndex)
-                webViewUrl = defaultFile.absolutePath
-                Log.d("HomeActivity", "Home button: Loading default URL: ${defaultFile.absolutePath}")
-              }
-            }
-          }) {
-            Icon(Icons.Filled.Home, contentDescription = "Home")
-          }
-        }
-      )
-    }
-  ){ paddingValues ->
-    Box(
       modifier = Modifier
         .padding(paddingValues)
         .fillMaxSize()
@@ -359,26 +338,35 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
             webViewClient = object : WebViewClient() {
               override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                Log.d("HomeActivity", "onPageFinished: $url. Reporting scroll/title and saving state.")
+                Log.d("HomeActivity", "onPageFinished for URL: $url. Requesting scroll/title from JS.")
+                // These JS calls are asynchronous in nature regarding when WebAppInterface methods will be hit.
                 view?.loadUrl("javascript:AndroidInterface.reportScrollPosition(window.pageYOffset, window.pageXOffset);")
                 view?.loadUrl("javascript:AndroidInterface.reportPageTitle(document.title);")
 
-                // It's important that currentScrollX/Y are updated by JS before this point.
-                // A slight delay or ensuring JS execution might be needed if values are stale.
-                // For now, assume JS interface updates state quickly enough.
                 val loadedUrl = view?.url
                 if (loadedUrl != null && loadedUrl != "about:blank") {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        saveCurrentState(lastPageStateDao, loadedUrl, currentScrollX.value, currentScrollY.value, context)
+                    // Add a small delay to allow JS interface to potentially update state.
+                    // This is a temporary diagnostic measure.
+                    coroutineScope.launch {
+                        // Delaying slightly to see if it affects the values read from state.
+                        // NOTE: This delay is for diagnostics. A robust solution would not rely on arbitrary delays.
+                        kotlinx.coroutines.delay(100) // e.g., 100ms delay
+
+                        val scrollXToSave = currentScrollX.value
+                        val scrollYToSave = currentScrollY.value
+                        Log.d("HomeActivity", "onPageFinished: Preparing to save state for URL '$loadedUrl'. ScrollX=$scrollXToSave, ScrollY=$scrollYToSave (values read from Composable state after JS calls and a small delay).")
+                        withContext(Dispatchers.IO) {
+                            saveCurrentState(lastPageStateDao, loadedUrl, scrollXToSave, scrollYToSave, context)
+                        }
                     }
                 }
-                updateNavigationButtonStates() // Update states after page load
+                updateNavigationButtonStates()
               }
             }
 
-            if (!currentUrlToLoad.isNullOrBlank()) {
-              loadUrl(currentUrlToLoad)
-              Log.d("HomeActivity", "WebView factory: Initial URL loaded: $currentUrlToLoad")
+            if (!webViewUrl.isNullOrBlank()) {
+              loadUrl(webViewUrl)
+              Log.d("HomeActivity", "WebView factory: Initial URL loaded: $webViewUrl")
             } else {
               Log.d("HomeActivity", "WebView factory: Initial URL is null or blank.")
             }
@@ -386,14 +374,22 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
         },
         update = { wv ->
           webViewInstance = wv // Update instance on re-composition if webview is re-created by key change
-          val newUrl = webViewUrl
-          val currentWebViewUrl = wv.url
-          Log.d("HomeActivity", "WebView update: newUrl=$newUrl, currentWebViewUrl=$currentWebViewUrl")
-          if (newUrl != null && newUrl != currentWebViewUrl && newUrl != "about:blank") {
-            wv.loadUrl(newUrl)
-            Log.d("HomeActivity", "WebView update: Loaded new URL: $newUrl")
-          } else if (newUrl == null && currentWebViewUrl != "about:blank") {
-             Log.d("HomeActivity", "WebView update: newUrl is null, not changing WebView content from $currentWebViewUrl")
+          val newUrlToLoad = webViewUrl // Use the state variable
+          val currentWebViewInternalUrl = wv.url // Get current URL from WebView
+
+          Log.d("HomeActivity", "WebView update: Desired URL='${newUrlToLoad}', Current WebView URL='${currentWebViewInternalUrl}'")
+
+          // Condition: new URL must be non-null, not blank, and different from WebView's current URL.
+          if (newUrlToLoad != null && newUrlToLoad.isNotBlank() && newUrlToLoad != currentWebViewInternalUrl) {
+            wv.loadUrl(newUrlToLoad)
+            Log.d("HomeActivity", "WebView update: Loading new URL: '${newUrlToLoad}'")
+          } else if (newUrlToLoad == currentWebViewInternalUrl) {
+            // Log if the URL is already the current one; no action needed.
+            Log.d("HomeActivity", "WebView update: Desired URL is the same as current. No action.")
+          } else {
+            // Log if the new URL is null or blank; no action taken.
+            // This branch covers (newUrlToLoad == null || newUrlToLoad.isBlank())
+            Log.d("HomeActivity", "WebView update: Desired URL is null or blank. No action. Current URL remains '${currentWebViewInternalUrl}'.")
           }
         },
         modifier = Modifier.fillMaxSize()
@@ -490,14 +486,16 @@ class WebAppInterface(
 ) {
     @JavascriptInterface
     fun reportScrollPosition(y: Int, x: Int) {
-        Log.d("WebAppInterface", "Scroll reported: Y=$y, X=$x")
+        Log.d("WebAppInterface", "JS -> Native: reportScrollPosition received: Y=$y, X=$x. Current state before update: scrollY=${scrollY.value}, scrollX=${scrollX.value}")
         scrollY.value = y
         scrollX.value = x
+        Log.d("WebAppInterface", "JS -> Native: reportScrollPosition updated state to: scrollY=${scrollY.value}, scrollX=${scrollX.value}")
     }
 
     @JavascriptInterface
     fun reportPageTitle(documentTitle: String) {
-        Log.d("WebAppInterface", "Title reported: $documentTitle")
+        Log.d("WebAppInterface", "JS -> Native: reportPageTitle received: $documentTitle. Current state before update: title='${title.value}'")
         title.value = documentTitle
+        Log.d("WebAppInterface", "JS -> Native: reportPageTitle updated state to: title='${title.value}'")
     }
 }

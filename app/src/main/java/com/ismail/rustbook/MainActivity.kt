@@ -27,6 +27,7 @@ import com.ismail.rustbook.ui.activity.LanguageSelect
 import com.ismail.rustbook.ui.activity.LanguageSelectNavigation
 import com.ismail.rustbook.ui.theme.RustBookNativeTheme
 import java.io.File
+import android.util.Log
 
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,27 +47,50 @@ fun MyAppNavHost(
   context: Context,
   navController: NavHostController = rememberNavController(),
 ) {
+  // 1. Instantiate ResourcesOfZipFilesWithInfo once
+  val resources = ResourcesOfZipFilesWithInfo() // Assuming this is lightweight or memoize if not
+  val knownLanguages = resources.zipFilesWithInfo.mapNotNull { it["language"]?.toString() }.toSet()
 
-  var languageName: String? = null;
-  for( dirs in context.filesDir.list()?.toList()!!){
-    for( zipFilesWithInfo in ResourcesOfZipFilesWithInfo(). zipFilesWithInfo){
-      if(dirs == zipFilesWithInfo["language"]){
-        languageName = zipFilesWithInfo["language"].toString()
-        break
-      }
+  var foundLanguageDir: String? = null
+  val filesInDir = context.filesDir.list()?.toList() ?: emptyList()
+
+  // 3. Efficiently find matching language
+  for (dirName in filesInDir) {
+    if (knownLanguages.contains(dirName)) {
+      foundLanguageDir = dirName
+      Log.d("MyAppNavHost", "Found matching language directory: '$foundLanguageDir'")
+      break // Found the first matching directory
     }
   }
-  val rootIndex = "$languageName/book/index.html";
-  val file = File(context.filesDir,rootIndex )
-  val startDestination = if (file.exists()) HomeActivityNavigation(rootIndex = rootIndex) else LanguageSelectNavigation
+
+  val startDestination: Any // Use Any for startDestination type before casting
+  if (foundLanguageDir != null) {
+    val rootIndexPath = "$foundLanguageDir/book/index.html"
+    val indexFile = File(context.filesDir, rootIndexPath)
+    if (indexFile.exists() && indexFile.isFile) {
+      Log.d("MyAppNavHost", "Index file '$rootIndexPath' exists. Navigating to HomeActivity.")
+      // Ensure HomeActivityNavigation can be constructed correctly
+      startDestination = HomeActivityNavigation(rootIndex = rootIndexPath)
+    } else {
+      // Language directory found, but index.html is missing/invalid
+      Log.w("MyAppNavHost", "Language dir '$foundLanguageDir' found, but '$rootIndexPath' is missing or not a file. Navigating to language select.")
+      startDestination = LanguageSelectNavigation
+    }
+  } else {
+    // 4. Handle languageName being null
+    Log.d("MyAppNavHost", "No matching language directory found in filesDir. Navigating to language select.")
+    startDestination = LanguageSelectNavigation
+  }
 
   NavHost(
     navController = navController,
     startDestination = startDestination,
   ) {
-    composable<HomeActivityNavigation> {
-       val rootIndex: String= it.toRoute<HomeActivityNavigation>().rootIndex
-      HomeActivity(navController, rootIndex) }
+    composable<HomeActivityNavigation> { backStackEntry ->
+       // Ensure the route type is correctly inferred or explicitly cast if needed
+       val homeArgs = backStackEntry.toRoute<HomeActivityNavigation>()
+       HomeActivity(navController, homeArgs.rootIndex)
+    }
     composable<LanguageSelectNavigation> {
       LanguageSelect(navController)
     }
