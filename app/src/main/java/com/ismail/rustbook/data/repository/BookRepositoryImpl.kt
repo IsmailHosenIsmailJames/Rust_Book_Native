@@ -45,12 +45,20 @@ class BookRepositoryImpl(
         appPreferences.toggleFavorite(page)
     }
 
+    override suspend fun toggleCompletion(page: String) {
+        appPreferences.toggleCompletion(page)
+    }
+
     override suspend fun addToHistory(page: String) {
         appPreferences.addToHistory(page)
     }
 
     override suspend fun isFavorite(page: String): Boolean {
         return appPreferences.isFavorite(page)
+    }
+
+    override suspend fun isCompleted(page: String): Boolean {
+        return appPreferences.isCompleted(page)
     }
 
     override suspend fun resetSettings() {

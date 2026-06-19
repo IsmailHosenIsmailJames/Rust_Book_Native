@@ -14,8 +14,10 @@ interface BookRepository {
     suspend fun updateLastOpenedPage(page: String)
     suspend fun updateHomePage(page: String)
     suspend fun toggleFavorite(page: String)
+    suspend fun toggleCompletion(page: String)
     suspend fun addToHistory(page: String)
     suspend fun isFavorite(page: String): Boolean
+    suspend fun isCompleted(page: String): Boolean
     suspend fun resetSettings()
     suspend fun getHtmlFiles(baseDir: String): List<String>
 }

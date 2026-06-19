@@ -36,7 +36,8 @@ class HomeViewModel(
                         appSettings = settings,
                         history = settings.history,
                         favorites = settings.favorites.toList(),
-                        isFavorite = settings.favorites.contains(currentState.currentUrl)
+                        isFavorite = settings.favorites.contains(currentState.currentUrl),
+                        isCompleted = settings.completedPages.contains(currentState.currentUrl)
                     )
                 }
             }
@@ -55,6 +56,16 @@ class HomeViewModel(
             HomeContract.Intent.ToggleFavorite -> {
                 viewModelScope.launch {
                     updateAppSettingsUseCase.toggleFavorite(_state.value.currentUrl)
+                }
+            }
+            HomeContract.Intent.ToggleCompletion -> {
+                viewModelScope.launch {
+                    repository.toggleCompletion(_state.value.currentUrl)
+                }
+            }
+            HomeContract.Intent.NavigateToProgress -> {
+                viewModelScope.launch {
+                    _effect.emit(HomeContract.Effect.NavigateToProgress)
                 }
             }
             HomeContract.Intent.GoHome -> {
@@ -85,7 +96,8 @@ class HomeViewModel(
             is HomeContract.Intent.PageFinished -> {
                 _state.update { it.copy(
                     currentUrl = intent.url,
-                    isFavorite = _state.value.appSettings?.favorites?.contains(intent.url) ?: false
+                    isFavorite = _state.value.appSettings?.favorites?.contains(intent.url) ?: false,
+                    isCompleted = _state.value.appSettings?.completedPages?.contains(intent.url) ?: false
                 ) }
                 viewModelScope.launch {
                     updateAppSettingsUseCase.updateLastOpenedPage(intent.url)

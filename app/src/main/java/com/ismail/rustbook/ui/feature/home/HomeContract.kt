@@ -7,6 +7,7 @@ interface HomeContract {
         val currentUrl: String = "",
         val searchQuery: String = "",
         val isFavorite: Boolean = false,
+        val isCompleted: Boolean = false,
         val history: List<String> = emptyList(),
         val favorites: List<String> = emptyList(),
         val filteredSearchFiles: List<String> = emptyList(),
@@ -18,6 +19,8 @@ interface HomeContract {
         data class Search(val query: String) : Intent
         data class NavigateTo(val url: String) : Intent
         object ToggleFavorite : Intent
+        object ToggleCompletion : Intent
+        object NavigateToProgress : Intent
         object GoHome : Intent
         object SetAsHome : Intent
         object ResetApp : Intent
@@ -29,6 +32,7 @@ interface HomeContract {
 
     sealed interface Effect {
         object NavigateToLanguage : Effect
+        object NavigateToProgress : Effect
         data class OpenUrl(val url: String) : Effect
     }
 }

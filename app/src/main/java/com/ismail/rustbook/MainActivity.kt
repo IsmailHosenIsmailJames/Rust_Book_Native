@@ -20,6 +20,8 @@ import com.ismail.rustbook.ui.feature.download.DownloadScreen
 import com.ismail.rustbook.ui.feature.download.DownloadScreenNavigation
 import com.ismail.rustbook.ui.feature.language.LanguageScreen
 import com.ismail.rustbook.ui.feature.language.LanguageScreenNavigation
+import com.ismail.rustbook.ui.feature.progress.ProgressScreen
+import com.ismail.rustbook.ui.feature.progress.ProgressScreenNavigation
 import com.ismail.rustbook.ui.theme.RustBookNativeTheme
 import java.io.File
 
@@ -76,6 +78,9 @@ fun MyAppNavHost(
       val downloadUrl = it.toRoute<DownloadScreenNavigation>().downloadUrl
       val language = it.toRoute<DownloadScreenNavigation>().language
       DownloadScreen(navController, downloadUrl, language)
+    }
+    composable<ProgressScreenNavigation> {
+      ProgressScreen(navController)
     }
   }
 }

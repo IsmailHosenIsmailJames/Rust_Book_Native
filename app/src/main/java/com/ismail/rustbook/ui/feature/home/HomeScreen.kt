@@ -36,6 +36,7 @@ import com.ismail.rustbook.data.repository.BookRepositoryImpl
 import com.ismail.rustbook.domain.usecase.GetAppSettingsUseCase
 import com.ismail.rustbook.domain.usecase.UpdateAppSettingsUseCase
 import com.ismail.rustbook.ui.feature.language.LanguageScreenNavigation
+import com.ismail.rustbook.ui.feature.progress.ProgressScreenNavigation
 import kotlinx.serialization.Serializable
 import java.io.File
 
@@ -74,6 +75,9 @@ fun HomeScreen(navController: NavHostController, rootIndex: String) {
                     navController.navigate(LanguageScreenNavigation) {
                         popUpTo(0)
                     }
+                }
+                HomeContract.Effect.NavigateToProgress -> {
+                    navController.navigate(ProgressScreenNavigation)
                 }
                 is HomeContract.Effect.OpenUrl -> {
                     try {
@@ -133,6 +137,15 @@ fun HomeScreen(navController: NavHostController, rootIndex: String) {
                             singleLine = true
                         )
 
+                        if (state.isCompleted) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = "Completed",
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
+
                         Spacer(modifier = Modifier.width(4.dp))
 
                         IconButton(onClick = { webView?.goBack() }) {
@@ -166,6 +179,15 @@ fun HomeScreen(navController: NavHostController, rootIndex: String) {
                                     }
                                 )
                                 DropdownMenuItem(
+                                    text = { Text("My Progress") },
+                                    leadingIcon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.handleIntent(HomeContract.Intent.NavigateToProgress)
+                                    }
+                                )
+                                HorizontalDivider()
+                                DropdownMenuItem(
                                     text = { Text("All Favorites") },
                                     leadingIcon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
                                     onClick = {
@@ -185,6 +207,20 @@ fun HomeScreen(navController: NavHostController, rootIndex: String) {
                                     onClick = {
                                         showMenu = false
                                         viewModel.handleIntent(HomeContract.Intent.ToggleFavorite)
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (state.isCompleted) "Remove Completion" else "Mark as Complete") },
+                                    leadingIcon = {
+                                        Icon(
+                                            if (state.isCompleted) Icons.Default.CheckCircle else Icons.Default.AddCircle,
+                                            contentDescription = null,
+                                            tint = if (state.isCompleted) Color(0xFF4CAF50) else LocalContentColor.current
+                                        )
+                                    },
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.handleIntent(HomeContract.Intent.ToggleCompletion)
                                     }
                                 )
                                 DropdownMenuItem(

@@ -24,6 +24,10 @@ class AppPreferences(context: Context) {
         get() = prefs.getStringSet("favorites", emptySet()) ?: emptySet()
         set(value) = prefs.edit().putStringSet("favorites", value).apply()
 
+    var completedPages: Set<String>
+        get() = prefs.getStringSet("completed_pages", emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet("completed_pages", value).apply()
+
     var history: List<String>
         get() = prefs.getString("history", "")?.split(",")?.filter { it.isNotEmpty() } ?: emptyList()
         set(value) = prefs.edit().putString("history", value.joinToString(",")).apply()
@@ -41,7 +45,8 @@ class AppPreferences(context: Context) {
             lastOpenedPage = lastOpenedPage,
             homePage = homePage,
             favorites = favorites,
-            history = history
+            history = history,
+            completedPages = completedPages
         )
     }
 
@@ -67,6 +72,18 @@ class AppPreferences(context: Context) {
     }
 
     fun isFavorite(page: String): Boolean = favorites.contains(page)
+
+    fun toggleCompletion(page: String) {
+        val current = completedPages.toMutableSet()
+        if (current.contains(page)) {
+            current.remove(page)
+        } else {
+            current.add(page)
+        }
+        completedPages = current
+    }
+
+    fun isCompleted(page: String): Boolean = completedPages.contains(page)
 
     fun resetAll() {
         prefs.edit().clear().apply()
