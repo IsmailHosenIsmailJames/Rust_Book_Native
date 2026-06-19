@@ -50,6 +50,8 @@ import com.rust_book.example.ui.feature.language.LanguageScreenNavigation
 import com.rust_book.example.ui.feature.progress.ProgressScreenNavigation
 import kotlinx.serialization.Serializable
 import java.io.File
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 @Serializable
 data class HomeActivityNavigation(
@@ -110,9 +112,10 @@ fun HomeScreen(navController: NavHostController, rootIndex: String, defaultIndex
 
     // Handle navigation changes from state (like Go Home)
     LaunchedEffect(state.currentUrl) {
-        val absolutePath = File(context.filesDir, state.currentUrl).absolutePath
-        if (webView?.url != "file://$absolutePath") {
-            webView?.loadUrl(absolutePath)
+        val file = File(context.filesDir, state.currentUrl)
+        val fileUrl = Uri.fromFile(file).toString()
+        if (webView?.url != fileUrl) {
+            webView?.loadUrl(fileUrl)
         }
     }
 
@@ -320,7 +323,8 @@ fun HomeScreen(navController: NavHostController, rootIndex: String, defaultIndex
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 super.onPageFinished(view, url)
                                 if (url != null && url.startsWith("file://")) {
-                                    val relativePath = url.substringAfter(context.filesDir.absolutePath + "/")
+                                    val decodedUrl = URLDecoder.decode(url, StandardCharsets.UTF_8.toString())
+                                    val relativePath = decodedUrl.substringAfter(context.filesDir.absolutePath + "/")
                                     viewModel.handleIntent(HomeContract.Intent.PageFinished(relativePath))
                                 }
                             }
@@ -340,7 +344,8 @@ fun HomeScreen(navController: NavHostController, rootIndex: String, defaultIndex
                             }
                         }
                         webView = this
-                        loadUrl(File(context.filesDir, state.currentUrl).absolutePath)
+                        val file = File(context.filesDir, state.currentUrl)
+                        loadUrl(Uri.fromFile(file).toString())
                     }
                 }
             )

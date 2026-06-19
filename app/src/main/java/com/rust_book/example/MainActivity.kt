@@ -52,7 +52,8 @@ fun MyAppNavHost(
   }
   val languageName = downloadedLanguage?.name
 
-  val lastPage = appPreferences.lastOpenedPage?.takeIf { !it.startsWith("http") && !it.startsWith("https") }
+  val lastPage = appPreferences.lastOpenedPage
+    ?.takeIf { !it.startsWith("http") && !it.startsWith("https") && !it.startsWith("file://") }
   val defaultIndex = "$languageName/book/index.html"
   val rootIndex = lastPage ?: defaultIndex
 
