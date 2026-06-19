@@ -1,6 +1,8 @@
 package com.ismail.rustbook.ui.feature.home
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -71,6 +73,14 @@ fun HomeScreen(navController: NavHostController, rootIndex: String) {
                 HomeContract.Effect.NavigateToLanguage -> {
                     navController.navigate(LanguageScreenNavigation) {
                         popUpTo(0)
+                    }
+                }
+                is HomeContract.Effect.OpenUrl -> {
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(effect.url))
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to open URL: ${effect.url}", e)
                     }
                 }
             }
@@ -183,6 +193,23 @@ fun HomeScreen(navController: NavHostController, rootIndex: String) {
                                     onClick = {
                                         showMenu = false
                                         showHistoryDialog = true
+                                    }
+                                )
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = { Text("Star on GitHub") },
+                                    leadingIcon = { Icon(Icons.Default.ThumbUp, contentDescription = null) },
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.handleIntent(HomeContract.Intent.StarOnGitHub)
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Rate App") },
+                                    leadingIcon = { Icon(Icons.Default.Star, contentDescription = null) },
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.handleIntent(HomeContract.Intent.RateApp)
                                     }
                                 )
                                 HorizontalDivider()

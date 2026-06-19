@@ -23,9 +23,12 @@ interface HomeContract {
         object ResetApp : Intent
         data class PageFinished(val url: String) : Intent
         object LoadInitialData : Intent
+        object RateApp : Intent
+        object StarOnGitHub : Intent
     }
 
     sealed interface Effect {
         object NavigateToLanguage : Effect
+        data class OpenUrl(val url: String) : Effect
     }
 }

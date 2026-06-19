@@ -72,6 +72,16 @@ class HomeViewModel(
                     _effect.emit(HomeContract.Effect.NavigateToLanguage)
                 }
             }
+            HomeContract.Intent.RateApp -> {
+                viewModelScope.launch {
+                    _effect.emit(HomeContract.Effect.OpenUrl("https://play.google.com/store/apps/details?id=com.rust_book.example"))
+                }
+            }
+            HomeContract.Intent.StarOnGitHub -> {
+                viewModelScope.launch {
+                    _effect.emit(HomeContract.Effect.OpenUrl("https://github.com/IsmailHosenIsmailJames/Rust_Book_Native"))
+                }
+            }
             is HomeContract.Intent.PageFinished -> {
                 _state.update { it.copy(
                     currentUrl = intent.url,
