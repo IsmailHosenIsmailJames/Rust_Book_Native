@@ -6,15 +6,15 @@ plugins {
 }
 
 android {
-  namespace = "com.ismail.rustbook"
-  compileSdk = 36
+  namespace = "com.rust_book.example"
+  compileSdk = 37
 
   defaultConfig {
-    applicationId = "com.ismail.rustbook"
+    applicationId = "com.rust_book.example"
     minSdk = 24
-    targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    targetSdk = 37
+    versionCode = 16
+    versionName = "3.1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -51,7 +51,6 @@ dependencies {
   testImplementation(libs.junit)
   androidTestImplementation(libs.androidx.junit)
   androidTestImplementation(libs.androidx.espresso.core)
-  androidTestImplementation(platform(libs.androidx.compose.bom))
   androidTestImplementation(libs.androidx.ui.test.junit4)
   debugImplementation(libs.androidx.ui.tooling)
   debugImplementation(libs.androidx.ui.test.manifest)
