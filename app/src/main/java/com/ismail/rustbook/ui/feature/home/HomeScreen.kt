@@ -31,6 +31,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.ismail.rustbook.R
 import com.ismail.rustbook.data.local.AppPreferences
 import com.ismail.rustbook.data.repository.BookRepositoryImpl
 import com.ismail.rustbook.domain.usecase.GetAppSettingsUseCase
@@ -258,7 +260,7 @@ fun HomeScreen(navController: NavHostController, rootIndex: String, defaultIndex
                                 )
                                 DropdownMenuItem(
                                     text = { Text("History") },
-                                    leadingIcon = { Icon(Icons.Default.Menu, contentDescription = null) },
+                                    leadingIcon = { Icon(painter = painterResource( R.drawable.history_svgrepo_com), contentDescription = null, modifier = Modifier.size(24.dp, 24.dp)) },
                                     onClick = {
                                         showMenu = false
                                         showHistoryDialog = true
@@ -267,7 +269,7 @@ fun HomeScreen(navController: NavHostController, rootIndex: String, defaultIndex
                                 HorizontalDivider()
                                 DropdownMenuItem(
                                     text = { Text("Star on GitHub") },
-                                    leadingIcon = { Icon(Icons.Default.ThumbUp, contentDescription = null) },
+                                    leadingIcon = { Icon(painter = painterResource( R.drawable.github_svgrepo_com), contentDescription = null, modifier = Modifier.size(24.dp, 24.dp)) },
                                     onClick = {
                                         showMenu = false
                                         viewModel.handleIntent(HomeContract.Intent.StarOnGitHub)
