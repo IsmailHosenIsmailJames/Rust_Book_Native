@@ -64,7 +64,8 @@ fun DownloadScreen(
     LaunchedEffect(state.stage) {
         if (state.stage == DownloadStage.Finished) {
             navController.popBackStack()
-            navController.navigate(HomeActivityNavigation(rootIndex = "${state.language}/book/index.html"))
+            val index = "${state.language}/book/index.html"
+            navController.navigate(HomeActivityNavigation(rootIndex = index, defaultIndex = index))
         }
     }
 

@@ -51,7 +51,8 @@ import java.io.File
 
 @Serializable
 data class HomeActivityNavigation(
-    val rootIndex: String
+    val rootIndex: String,
+    val defaultIndex: String
 )
 
 private const val TAG = "HomeScreenDebug"
@@ -59,7 +60,7 @@ private const val TAG = "HomeScreenDebug"
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun HomeScreen(navController: NavHostController, rootIndex: String) {
+fun HomeScreen(navController: NavHostController, rootIndex: String, defaultIndex: String) {
     val context = LocalContext.current
     val viewModel: HomeViewModel = viewModel {
         val repository = BookRepositoryImpl(context, AppPreferences(context))
@@ -67,7 +68,8 @@ fun HomeScreen(navController: NavHostController, rootIndex: String) {
             getAppSettingsUseCase = GetAppSettingsUseCase(repository),
             updateAppSettingsUseCase = UpdateAppSettingsUseCase(repository),
             repository = repository,
-            rootIndex = rootIndex
+            rootIndex = rootIndex,
+            defaultIndex = defaultIndex
         )
     }
 
@@ -315,13 +317,23 @@ fun HomeScreen(navController: NavHostController, rootIndex: String) {
                         webViewClient = object : WebViewClient() {
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 super.onPageFinished(view, url)
-                                url?.let {
-                                    val relativePath = it.substringAfter(context.filesDir.absolutePath + "/")
+                                if (url != null && url.startsWith("file://")) {
+                                    val relativePath = url.substringAfter(context.filesDir.absolutePath + "/")
                                     viewModel.handleIntent(HomeContract.Intent.PageFinished(relativePath))
                                 }
                             }
 
                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                val url = request?.url?.toString() ?: return false
+                                if (!url.startsWith("file://") && !url.startsWith("about:blank")) {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Failed to open external link: $url", e)
+                                    }
+                                    return true
+                                }
                                 return false
                             }
                         }

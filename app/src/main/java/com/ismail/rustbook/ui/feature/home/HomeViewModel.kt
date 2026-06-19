@@ -12,7 +12,8 @@ class HomeViewModel(
     private val getAppSettingsUseCase: GetAppSettingsUseCase,
     private val updateAppSettingsUseCase: UpdateAppSettingsUseCase,
     private val repository: BookRepository,
-    private val rootIndex: String
+    private val rootIndex: String,
+    private val defaultIndex: String
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeContract.State(currentUrl = rootIndex))
@@ -69,7 +70,7 @@ class HomeViewModel(
                 }
             }
             HomeContract.Intent.GoHome -> {
-                val home = _state.value.appSettings?.homePage ?: rootIndex
+                val home = _state.value.appSettings?.homePage ?: defaultIndex
                 handleIntent(HomeContract.Intent.NavigateTo(home))
             }
             HomeContract.Intent.SetAsHome -> {

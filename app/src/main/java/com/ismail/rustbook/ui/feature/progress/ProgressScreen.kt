@@ -125,7 +125,13 @@ fun ProgressScreen(navController: NavHostController) {
                                 Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CAF50))
                             },
                             modifier = Modifier.clickable {
-                                navController.navigate(HomeActivityNavigation(rootIndex = path)) {
+                                val defaultIndex = path.substringBefore("/") + "/book/index.html"
+                                navController.navigate(
+                                    HomeActivityNavigation(
+                                        rootIndex = path,
+                                        defaultIndex = defaultIndex
+                                    )
+                                ) {
                                     popUpTo(navController.graph.startDestinationId)
                                 }
                             }

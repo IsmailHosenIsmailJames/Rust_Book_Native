@@ -52,13 +52,13 @@ fun MyAppNavHost(
   }
   val languageName = downloadedLanguage?.name
 
-  val lastPage = appPreferences.lastOpenedPage
+  val lastPage = appPreferences.lastOpenedPage?.takeIf { !it.startsWith("http") && !it.startsWith("https") }
   val defaultIndex = "$languageName/book/index.html"
   val rootIndex = lastPage ?: defaultIndex
 
   val file = File(context.filesDir, rootIndex)
   val startDestination = if (languageName != null && file.exists()) {
-    HomeActivityNavigation(rootIndex = rootIndex)
+    HomeActivityNavigation(rootIndex = rootIndex, defaultIndex = defaultIndex)
   } else {
     LanguageScreenNavigation
   }
@@ -68,8 +68,8 @@ fun MyAppNavHost(
     startDestination = startDestination,
   ) {
     composable<HomeActivityNavigation> {
-      val rootIndex = it.toRoute<HomeActivityNavigation>().rootIndex
-      HomeScreen(navController, rootIndex)
+      val nav = it.toRoute<HomeActivityNavigation>()
+      HomeScreen(navController, nav.rootIndex, nav.defaultIndex)
     }
     composable<LanguageScreenNavigation> {
       LanguageScreen(navController)
