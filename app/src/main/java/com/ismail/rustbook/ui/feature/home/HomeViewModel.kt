@@ -51,7 +51,7 @@ class HomeViewModel(
                 updateFilteredFiles(intent.query)
             }
             is HomeContract.Intent.NavigateTo -> {
-                _state.update { it.copy(currentUrl = intent.url, searchQuery = "") }
+                _state.update { it.copy(currentUrl = intent.url, searchQuery = "", filteredSearchFiles = emptyList()) }
             }
             HomeContract.Intent.ToggleFavorite -> {
                 viewModelScope.launch {
