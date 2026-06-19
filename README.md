@@ -14,6 +14,28 @@ Rust Book Native is a modern, high-performance Android application designed to p
 - **Custom Home Page**: Set any chapter as your personal "Home" page for immediate access when you open the app.
 - **Progressive Download**: Informative download and extraction process with real-time percentage and status updates.
 
+## 🌍 Supported Languages
+
+The app currently supports the following languages:
+
+- **English** (Complete)
+- **Deutsch** (Complete)
+- **Español** (Complete)
+- **Français** (Complete)
+- **日本語** (Japanese - Complete)
+- **简体中文** (Simplified Chinese - Complete)
+- **正體中文** (Traditional Chinese - Complete)
+- **한국어** (Korean - Complete)
+- **Русский** (Russian - Complete)
+- **Українська** (Ukrainian - Complete)
+- **Polski** (Complete)
+- **Português** (Complete)
+- **Danske** (Complete)
+- **বাংলা** (Bengali - Complete)
+- **Esperanto** (Complete)
+- **Farsi** (In Progress)
+- **Svenska** (In Progress)
+
 ## 🛠️ Tech Stack
 
 - **Language**: [Kotlin](https://kotlinlang.org/)
