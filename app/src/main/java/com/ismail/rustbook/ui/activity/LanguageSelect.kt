@@ -1,6 +1,6 @@
 package com.ismail.rustbook.ui.activity
 
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,11 +18,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -30,7 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -50,83 +55,99 @@ object LanguageSelectNavigation
 fun LanguageSelect(navController: NavHostController) {
   val zipFilesWithInfo = ResourcesOfZipFilesWithInfo().zipFilesWithInfo
   var selectedLanguageIndex by remember { mutableIntStateOf(2) }
+
+  val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+
   Scaffold(
+    modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
     topBar = {
-      TopAppBar(
+      LargeTopAppBar(
         title = {
           Text(
             "Select Language",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.W500,
-            modifier = Modifier.padding(20.dp)
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
           )
-        }
+        },
+        scrollBehavior = scrollBehavior
       )
     },
     floatingActionButton = {
-      FloatingActionButton(onClick = {
-        navController.popBackStack()
-        navController.navigate(
-          DownloadZipNavigation(
-            zipFilesWithInfo[selectedLanguageIndex]["link"] as String,
-            zipFilesWithInfo[selectedLanguageIndex]["language"] as String,
-            zipFilesWithInfo[selectedLanguageIndex]["isComplete"] as Boolean
+      ExtendedFloatingActionButton(
+        onClick = {
+          navController.popBackStack()
+          navController.navigate(
+            DownloadZipNavigation(
+              zipFilesWithInfo[selectedLanguageIndex]["link"] as String,
+              zipFilesWithInfo[selectedLanguageIndex]["language"] as String,
+              zipFilesWithInfo[selectedLanguageIndex]["isComplete"] as Boolean
+            )
           )
-        )
-      }) {
-        Row(modifier = Modifier.padding(start = 10.dp, end = 10.dp)) {
-          Text("Next", fontSize = 16.sp, fontWeight = FontWeight.W500)
-          Spacer(modifier = Modifier.width(10.dp))
-          Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Arrow Forward")
-        }
-      }
+        },
+        icon = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+        text = { Text("Next") },
+      )
     }
   ) { paddingValues ->
-    Box(
+    LazyColumn(
       modifier = Modifier
         .fillMaxSize()
-        .padding(paddingValues)
+        .padding(paddingValues),
+      contentPadding = PaddingValues(16.dp),
+      verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-      Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-      ) {
-        LazyColumn(
-          modifier = Modifier.fillMaxSize(),
-          contentPadding = PaddingValues(bottom = 50.dp, start = 20.dp, end = 20.dp)
-        ) {
-
-          items(zipFilesWithInfo.size) {
-            Row(
-              horizontalArrangement = Arrangement.Start,
-              verticalAlignment = Alignment.CenterVertically,
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .clickable(onClick = {
-                  selectedLanguageIndex = it
-                })
-                .padding(start = 10.dp, end = 10.dp)
-            ) {
-              Box(modifier = Modifier.size(30.dp, 30.dp)) {
-                if (it == selectedLanguageIndex) Icon(
-                  Icons.Filled.CheckCircle,
-                  contentDescription = "Selected",
-                  tint = Color(0xFF2196F3)
-                )
-              }
-              Spacer(modifier = Modifier.width(10.dp))
-              Text(
-                zipFilesWithInfo[it]["language"].toString(),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.W500
-              )
-            }
-          }
-        }
+      item {
+        Text(
+          text = "Choose your preferred language to download the Rust Book content.",
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          modifier = Modifier.padding(bottom = 8.dp)
+        )
       }
 
+      items(zipFilesWithInfo.size) { index ->
+        val isSelected = index == selectedLanguageIndex
+        val containerColor by animateColorAsState(
+          targetValue = if (isSelected) {
+            MaterialTheme.colorScheme.primaryContainer
+          } else {
+            MaterialTheme.colorScheme.surface
+          },
+          label = "CardSelectionColor"
+        )
+
+        OutlinedCard(
+          onClick = { selectedLanguageIndex = index },
+          modifier = Modifier.fillMaxWidth(),
+          colors = androidx.compose.material3.CardDefaults.outlinedCardColors(
+            containerColor = containerColor
+          )
+        ) {
+          ListItem(
+            headlineContent = {
+              Text(
+                zipFilesWithInfo[index]["language"].toString(),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+              )
+            },
+            leadingContent = {
+              if (isSelected) {
+                Icon(
+                  Icons.Filled.CheckCircle,
+                  contentDescription = "Selected",
+                  tint = MaterialTheme.colorScheme.primary
+                )
+              } else {
+                Box(modifier = Modifier.size(24.dp))
+              }
+            },
+            colors = androidx.compose.material3.ListItemDefaults.colors(
+              containerColor = androidx.compose.ui.graphics.Color.Transparent
+            )
+          )
+        }
+      }
     }
   }
 }

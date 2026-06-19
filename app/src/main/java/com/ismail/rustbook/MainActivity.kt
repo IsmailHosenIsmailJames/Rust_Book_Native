@@ -18,6 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.ismail.rustbook.ui.AppStateProvider
 import com.ismail.rustbook.ui.ResourcesOfZipFilesWithInfo
 import com.ismail.rustbook.ui.activity.DownloadZip
 import com.ismail.rustbook.ui.activity.DownloadZipNavigation
@@ -47,6 +48,8 @@ fun MyAppNavHost(
   navController: NavHostController = rememberNavController(),
 ) {
 
+  val appState = AppStateProvider(context)
+  
   var languageName: String? = null;
   for( dirs in context.filesDir.list()?.toList()!!){
     for( zipFilesWithInfo in ResourcesOfZipFilesWithInfo(). zipFilesWithInfo){
@@ -56,9 +59,17 @@ fun MyAppNavHost(
       }
     }
   }
-  val rootIndex = "$languageName/book/index.html";
-  val file = File(context.filesDir,rootIndex )
-  val startDestination = if (file.exists()) HomeActivityNavigation(rootIndex = rootIndex) else LanguageSelectNavigation
+  
+  val lastPage = appState.lastOpenedPage
+  val defaultIndex = "$languageName/book/index.html"
+  val rootIndex = lastPage ?: defaultIndex
+  
+  val file = File(context.filesDir, rootIndex)
+  val startDestination = if (languageName != null && file.exists()) {
+    HomeActivityNavigation(rootIndex = rootIndex)
+  } else {
+    LanguageSelectNavigation
+  }
 
   NavHost(
     navController = navController,
