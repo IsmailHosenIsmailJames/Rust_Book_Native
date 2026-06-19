@@ -1,4 +1,4 @@
-package com.ismail.rustbook.ui.activity
+package com.ismail.rustbook.ui.feature.home
 
 import android.annotation.SuppressLint
 import android.util.Log
@@ -27,50 +27,62 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.ismail.rustbook.ui.AppStateProvider
+import com.ismail.rustbook.data.local.AppPreferences
+import com.ismail.rustbook.data.repository.BookRepositoryImpl
+import com.ismail.rustbook.domain.usecase.GetAppSettingsUseCase
+import com.ismail.rustbook.domain.usecase.UpdateAppSettingsUseCase
+import com.ismail.rustbook.ui.feature.language.LanguageScreenNavigation
 import kotlinx.serialization.Serializable
 import java.io.File
 
 @Serializable
 data class HomeActivityNavigation(
-    var rootIndex: String
+    val rootIndex: String
 )
 
-private const val TAG = "HomeActivityDebug"
+private const val TAG = "HomeScreenDebug"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun HomeActivity(navController: NavHostController, rootIndex: String) {
-    Log.d(TAG, "HomeActivity launched with rootIndex: $rootIndex")
+fun HomeScreen(navController: NavHostController, rootIndex: String) {
     val context = LocalContext.current
-    val appState = remember { AppStateProvider(context) }
+    val viewModel: HomeViewModel = viewModel {
+        val repository = BookRepositoryImpl(context, AppPreferences(context))
+        HomeViewModel(
+            getAppSettingsUseCase = GetAppSettingsUseCase(repository),
+            updateAppSettingsUseCase = UpdateAppSettingsUseCase(repository),
+            repository = repository,
+            rootIndex = rootIndex
+        )
+    }
+
+    val state by viewModel.collectAsState()
     var webView by remember { mutableStateOf<WebView?>(null) }
-    var currentUrl by remember { mutableStateOf(rootIndex) }
-    var searchQuery by remember { mutableStateOf("") }
     var showMenu by remember { mutableStateOf(false) }
     var showHistoryDialog by remember { mutableStateOf(false) }
     var showFavoritesDialog by remember { mutableStateOf(false) }
 
-    // Extract base directory for file search (e.g., "English/book/")
-    val baseDir = remember(rootIndex) {
-        rootIndex.substringBeforeLast("/") + "/"
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                HomeContract.Effect.NavigateToLanguage -> {
+                    navController.navigate(LanguageScreenNavigation) {
+                        popUpTo(0)
+                    }
+                }
+            }
+        }
     }
 
-    // Get all HTML files for search
-    val allHtmlFiles = remember(baseDir) {
-        val dir = File(context.filesDir, baseDir)
-        dir.walkTopDown()
-            .filter { it.extension == "html" }
-            .map { it.absolutePath.substringAfter(context.filesDir.absolutePath + "/") }
-            .toList()
-    }
-
-    val filteredFiles = remember(searchQuery, allHtmlFiles) {
-        if (searchQuery.isBlank()) emptyList()
-        else allHtmlFiles.filter { it.contains(searchQuery, ignoreCase = true) }.take(15)
+    // Handle navigation changes from state (like Go Home)
+    LaunchedEffect(state.currentUrl) {
+        val absolutePath = File(context.filesDir, state.currentUrl).absolutePath
+        if (webView?.url != "file://$absolutePath") {
+            webView?.loadUrl(absolutePath)
+        }
     }
 
     Scaffold(
@@ -87,21 +99,17 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
                             .padding(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Search Bar
                         TextField(
-                            value = searchQuery,
-                            onValueChange = {
-                                searchQuery = it
-                                Log.d(TAG, "Search query changed: $it")
-                            },
+                            value = state.searchQuery,
+                            onValueChange = { viewModel.handleIntent(HomeContract.Intent.Search(it)) },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(52.dp),
                             placeholder = { Text("Search pages...", fontSize = 14.sp) },
                             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                             trailingIcon = {
-                                if (searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { searchQuery = "" }) {
+                                if (state.searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.handleIntent(HomeContract.Intent.Search("")) }) {
                                         Icon(Icons.Default.Close, contentDescription = null)
                                     }
                                 }
@@ -117,34 +125,14 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
 
                         Spacer(modifier = Modifier.width(4.dp))
 
-                        IconButton(onClick = {
-                            Log.d(TAG, "Navigation: Go Back clicked")
-                            if (webView != null) {
-                                try {
-                                    webView!!.goBack()
-                                } catch (e: Exception) {
-                                    Log.d(TAG, "WebView: ${e.toString()}")
-                                }
-                            } else {
-                                Log.d(TAG, "WebView: Null")
-                            }
-                        }) {
+                        IconButton(onClick = { webView?.goBack() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
-                        IconButton(onClick = {
-                            Log.d(TAG, "Navigation: Go Forward clicked")
-                            webView?.goForward()
-                        }) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = "Forward"
-                            )
+                        IconButton(onClick = { webView?.goForward() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Forward")
                         }
                         Box {
-                            IconButton(onClick = {
-                                Log.d(TAG, "Menu: More Options clicked")
-                                showMenu = true
-                            }) {
+                            IconButton(onClick = { showMenu = true }) {
                                 Icon(Icons.Default.MoreVert, contentDescription = "Menu")
                             }
                             DropdownMenu(
@@ -153,88 +141,53 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
                             ) {
                                 DropdownMenuItem(
                                     text = { Text("Go Home") },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Default.Home,
-                                            contentDescription = null
-                                        )
-                                    },
+                                    leadingIcon = { Icon(Icons.Default.Home, contentDescription = null) },
                                     onClick = {
-                                        Log.d(TAG, "Action: Go Home clicked")
                                         showMenu = false
-                                        val home = appState.homePage ?: rootIndex
-                                        webView?.loadUrl(File(context.filesDir, home).absolutePath)
+                                        viewModel.handleIntent(HomeContract.Intent.GoHome)
                                     }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Set as Home") },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Default.AddCircle,
-                                            contentDescription = null
-                                        )
-                                    },
+                                    leadingIcon = { Icon(Icons.Default.AddCircle, contentDescription = null) },
                                     onClick = {
-                                        Log.d(TAG, "Action: Set as Home clicked for: $currentUrl")
                                         showMenu = false
-                                        appState.homePage = currentUrl
+                                        viewModel.handleIntent(HomeContract.Intent.SetAsHome)
                                     }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("All Favorites") },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.AutoMirrored.Filled.List,
-                                            contentDescription = null
-                                        )
-                                    },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
                                     onClick = {
-                                        Log.d(TAG, "Action: Show All Favorites clicked")
                                         showMenu = false
                                         showFavoritesDialog = true
                                     }
                                 )
-                                val isFav = appState.isFavorite(currentUrl)
                                 DropdownMenuItem(
-                                    text = { Text(if (isFav) "Remove from Favorites" else "Save to Favorites") },
+                                    text = { Text(if (state.isFavorite) "Remove from Favorites" else "Save to Favorites") },
                                     leadingIcon = {
                                         Icon(
-                                            if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                            if (state.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                             contentDescription = null,
-                                            tint = if (isFav) Color.Red else LocalContentColor.current
+                                            tint = if (state.isFavorite) Color.Red else LocalContentColor.current
                                         )
                                     },
                                     onClick = {
-                                        Log.d(
-                                            TAG,
-                                            "Action: Toggle Favorite clicked for: $currentUrl (Was favorite: $isFav)"
-                                        )
                                         showMenu = false
-                                        appState.toggleFavorite(currentUrl)
+                                        viewModel.handleIntent(HomeContract.Intent.ToggleFavorite)
                                     }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("History") },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Default.Menu,
-                                            contentDescription = null
-                                        )
-                                    },
+                                    leadingIcon = { Icon(Icons.Default.Menu, contentDescription = null) },
                                     onClick = {
-                                        Log.d(TAG, "Action: Show History clicked")
                                         showMenu = false
                                         showHistoryDialog = true
                                     }
                                 )
                                 HorizontalDivider()
                                 DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            "Reset App",
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    },
+                                    text = { Text("Reset App", color = MaterialTheme.colorScheme.error) },
                                     leadingIcon = {
                                         Icon(
                                             Icons.Default.Delete,
@@ -243,32 +196,24 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
                                         )
                                     },
                                     onClick = {
-                                        Log.d(TAG, "Action: Reset App clicked")
                                         showMenu = false
-                                        appState.resetAll()
-                                        navController.navigate(LanguageSelectNavigation) {
-                                            popUpTo(0)
-                                        }
+                                        viewModel.handleIntent(HomeContract.Intent.ResetApp)
                                     }
                                 )
                             }
                         }
                     }
 
-                    // Search Results Overlay
-                    if (filteredFiles.isNotEmpty()) {
+                    if (state.filteredSearchFiles.isNotEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                    RoundedCornerShape(8.dp)
-                                )
+                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
                                 .heightIn(max = 300.dp)
                         ) {
                             LazyColumn {
-                                items(filteredFiles) { path ->
+                                items(state.filteredSearchFiles) { path ->
                                     ListItem(
                                         headlineContent = {
                                             Text(
@@ -278,14 +223,7 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
                                             )
                                         },
                                         modifier = Modifier.clickable {
-                                            Log.d(TAG, "Action: Search result selected: $path")
-                                            searchQuery = ""
-                                            webView?.loadUrl(
-                                                File(
-                                                    context.filesDir,
-                                                    path
-                                                ).absolutePath
-                                            )
+                                            viewModel.handleIntent(HomeContract.Intent.NavigateTo(path))
                                         }
                                     )
                                 }
@@ -296,11 +234,7 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
             }
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-        ) {
+        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             AndroidView(
                 factory = { context ->
                     WebView(context).apply {
@@ -313,45 +247,30 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 super.onPageFinished(view, url)
                                 url?.let {
-                                    val relativePath =
-                                        it.substringAfter(context.filesDir.absolutePath + "/")
-                                    Log.d(TAG, "WebView: Page finished loading: $relativePath")
-                                    currentUrl = relativePath
-                                    appState.lastOpenedPage = relativePath
-                                    appState.addToHistory(relativePath)
+                                    val relativePath = it.substringAfter(context.filesDir.absolutePath + "/")
+                                    viewModel.handleIntent(HomeContract.Intent.PageFinished(relativePath))
                                 }
                             }
 
-                            override fun shouldOverrideUrlLoading(
-                                view: WebView?,
-                                request: WebResourceRequest?
-                            ): Boolean {
+                            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                 return false
                             }
                         }
                         webView = this
-                        loadUrl(File(context.filesDir, rootIndex).absolutePath)
+                        loadUrl(File(context.filesDir, state.currentUrl).absolutePath)
                     }
-                },
-                update = {
-                    // No-op for now as logic is handled in onPageFinished
                 }
             )
         }
     }
 
-    // Dialogs
     if (showHistoryDialog) {
         ListDialog(
             title = "History",
-            items = appState.history,
-            onDismiss = {
-                Log.d(TAG, "Dialog: History closed")
-                showHistoryDialog = false
-            },
+            items = state.history,
+            onDismiss = { showHistoryDialog = false },
             onSelect = { path ->
-                Log.d(TAG, "Dialog: History item selected: $path")
-                webView?.loadUrl(File(context.filesDir, path).absolutePath)
+                viewModel.handleIntent(HomeContract.Intent.NavigateTo(path))
                 showHistoryDialog = false
             }
         )
@@ -360,14 +279,10 @@ fun HomeActivity(navController: NavHostController, rootIndex: String) {
     if (showFavoritesDialog) {
         ListDialog(
             title = "Favorites",
-            items = appState.favorites.toList(),
-            onDismiss = {
-                Log.d(TAG, "Dialog: Favorites closed")
-                showFavoritesDialog = false
-            },
+            items = state.favorites,
+            onDismiss = { showFavoritesDialog = false },
             onSelect = { path ->
-                Log.d(TAG, "Dialog: Favorite item selected: $path")
-                webView?.loadUrl(File(context.filesDir, path).absolutePath)
+                viewModel.handleIntent(HomeContract.Intent.NavigateTo(path))
                 showFavoritesDialog = false
             }
         )
@@ -392,18 +307,10 @@ fun ListDialog(
                     items(items) { item ->
                         ListItem(
                             headlineContent = {
-                                Text(
-                                    item.substringAfterLast("/"),
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
+                                Text(item.substringAfterLast("/"), style = MaterialTheme.typography.bodyLarge)
                             },
                             supportingContent = {
-                                Text(
-                                    item,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Text(item, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             },
                             modifier = Modifier.clickable { onSelect(item) }
                         )
@@ -412,9 +319,12 @@ fun ListDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
+            TextButton(onClick = onDismiss) { Text("Close") }
         }
     )
+}
+
+@Composable
+fun HomeViewModel.collectAsState(): State<HomeContract.State> {
+    return state.collectAsState()
 }
