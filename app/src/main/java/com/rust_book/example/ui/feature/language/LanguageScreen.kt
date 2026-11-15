@@ -3,7 +3,6 @@ package com.rust_book.example.ui.feature.language
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,7 +51,7 @@ fun LanguageScreen(navController: NavHostController) {
         state = state,
         onIntent = viewModel::handleIntent,
         onConfirm = {
-            val selectedLanguage = state.languages[state.selectedIndex]
+            val selectedLanguage = state.languages.getOrNull(state.selectedIndex) ?: return@LanguageContent
             navController.popBackStack()
             navController.navigate(
                 DownloadScreenNavigation(
@@ -88,11 +87,13 @@ private fun LanguageContent(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onConfirm,
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
-                text = { Text("Next") },
-            )
+            if (state.languages.isNotEmpty()) {
+                ExtendedFloatingActionButton(
+                    onClick = onConfirm,
+                    icon = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                    text = { Text("Next") },
+                )
+            }
         }
     ) { paddingValues ->
         LazyColumn(

@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
+import java.net.HttpURLConnection
 import java.net.URL
 import java.util.zip.ZipInputStream
 
@@ -22,12 +24,18 @@ class BookRepositoryImpl(
         url: String,
         onProgress: (Float) -> Unit
     ) {
-        val cacheFile = File(context.cacheDir, "temp_book.zip")
-        downloadFile(url, cacheFile) { progress ->
-            onProgress(progress * 0.5f) // First 50% for download
-        }
-        extractZip(cacheFile, language) { progress ->
-            onProgress(0.5f + progress * 0.5f) // Next 50% for extraction
+        val cacheFile = File(context.cacheDir, "temp_book_${System.currentTimeMillis()}.zip")
+        try {
+            downloadFile(url, cacheFile) { progress ->
+                onProgress(progress * 0.5f) // First 50% for download
+            }
+            extractZip(cacheFile, language) { progress ->
+                onProgress(0.5f + progress * 0.5f) // Next 50% for extraction
+            }
+        } finally {
+            if (cacheFile.exists()) {
+                cacheFile.delete()
+            }
         }
     }
 
@@ -80,23 +88,44 @@ class BookRepositoryImpl(
         onProgress: (Float) -> Unit
     ) = withContext(Dispatchers.IO) {
         val url = URL(zipUrl)
-        val connection = url.openConnection()
-        connection.connect()
-        val totalLength = connection.contentLength
+        val connection = (url.openConnection() as? HttpURLConnection)
+            ?: throw IOException("Invalid connection type for URL: $zipUrl")
 
-        url.openStream().use { input ->
-            FileOutputStream(outputFile).use { output ->
-                val buffer = ByteArray(8192)
-                var downloadedLength = 0L
-                var len: Int
-                while (input.read(buffer).also { len = it } > 0) {
-                    output.write(buffer, 0, len)
-                    downloadedLength += len
-                    if (totalLength > 0) {
-                        onProgress(downloadedLength.toFloat() / totalLength)
+        try {
+            connection.connectTimeout = 15_000
+            connection.readTimeout = 30_000
+            connection.instanceFollowRedirects = true
+            connection.connect()
+
+            val responseCode = connection.responseCode
+            if (responseCode !in 200..299) {
+                throw IOException("Server returned HTTP $responseCode: ${connection.responseMessage}")
+            }
+
+            val totalLength = connection.contentLengthLong.takeIf { it > 0 }
+                ?: connection.contentLength.toLong()
+
+            connection.inputStream.use { input ->
+                FileOutputStream(outputFile).use { output ->
+                    val buffer = ByteArray(8192)
+                    var downloadedLength = 0L
+                    var len: Int
+                    while (input.read(buffer).also { len = it } > 0) {
+                        output.write(buffer, 0, len)
+                        downloadedLength += len
+                        if (totalLength > 0) {
+                            onProgress(downloadedLength.toFloat() / totalLength)
+                        }
                     }
                 }
             }
+        } catch (e: Exception) {
+            if (outputFile.exists()) {
+                outputFile.delete()
+            }
+            throw e
+        } finally {
+            connection.disconnect()
         }
     }
 
@@ -109,13 +138,22 @@ class BookRepositoryImpl(
         if (!outputDir.exists()) {
             outputDir.mkdirs()
         }
+        val canonicalDestination = outputDir.canonicalPath
 
-        val zipInputStream = ZipInputStream(zipFile.inputStream())
-        zipInputStream.use { zipInput ->
+        ZipInputStream(zipFile.inputStream().buffered()).use { zipInput ->
             var entry = zipInput.nextEntry
             var entriesProcessed = 0
             while (entry != null) {
                 val outputFile = File(outputDir, entry.name)
+                val canonicalEntry = outputFile.canonicalPath
+
+                // Protection against Zip Slip vulnerability
+                if (!canonicalEntry.startsWith(canonicalDestination + File.separator) &&
+                    canonicalEntry != canonicalDestination
+                ) {
+                    throw SecurityException("Zip entry is outside target directory: ${entry.name}")
+                }
+
                 if (entry.isDirectory) {
                     outputFile.mkdirs()
                 } else {
@@ -135,6 +173,5 @@ class BookRepositoryImpl(
             }
         }
         onProgress(1f)
-        zipFile.delete()
     }
 }

@@ -13,8 +13,8 @@ android {
     applicationId = "com.rust_book.example"
     minSdk = 24
     targetSdk = 37
-    versionCode = 16
-    versionName = "3.1.0"
+    versionCode = 17
+    versionName = "3.1.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

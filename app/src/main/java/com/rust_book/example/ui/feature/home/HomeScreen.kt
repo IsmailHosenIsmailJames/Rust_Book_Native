@@ -7,6 +7,7 @@ import android.util.Log
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -87,6 +88,16 @@ fun HomeScreen(navController: NavHostController, rootIndex: String, defaultIndex
 
     val displayPath = remember(state.currentUrl) { state.currentUrl.substringAfterLast("/") }
 
+    val canGoBack = webView?.canGoBack() == true
+    BackHandler(enabled = canGoBack || isSearchFocused || state.searchQuery.isNotEmpty()) {
+        if (isSearchFocused || state.searchQuery.isNotEmpty()) {
+            viewModel.handleIntent(HomeContract.Intent.Search(""))
+            focusManager.clearFocus()
+        } else if (canGoBack) {
+            webView?.goBack()
+        }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
@@ -150,8 +161,7 @@ fun HomeScreen(navController: NavHostController, rootIndex: String, defaultIndex
                         placeholder = { Text("Search pages...", fontSize = 14.sp) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                         trailingIcon =
-                            if(state.searchQuery.isNotEmpty() || isSearchFocused)
-                            {
+                            if (state.searchQuery.isNotEmpty() || isSearchFocused) {
                                 {
                                     IconButton(onClick = {
                                         viewModel.handleIntent(HomeContract.Intent.Search(""))
@@ -160,9 +170,7 @@ fun HomeScreen(navController: NavHostController, rootIndex: String, defaultIndex
                                         Icon(Icons.Default.Close, contentDescription = null)
                                     }
                                 }
-                            } else null
-
-                        ,
+                            } else null,
                         shape = RoundedCornerShape(26.dp),
                         colors = TextFieldDefaults.colors(
                             focusedIndicatorColor = Color.Transparent,
@@ -186,10 +194,10 @@ fun HomeScreen(navController: NavHostController, rootIndex: String, defaultIndex
 
                         Spacer(modifier = Modifier.width(4.dp))
 
-                        IconButton(onClick = { webView?.goBack() }) {
+                        IconButton(onClick = { webView?.goBack() }, enabled = canGoBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
-                        IconButton(onClick = { webView?.goForward() }) {
+                        IconButton(onClick = { webView?.goForward() }, enabled = webView?.canGoForward() == true) {
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Forward")
                         }
                         Box {
@@ -263,7 +271,7 @@ fun HomeScreen(navController: NavHostController, rootIndex: String, defaultIndex
                                 )
                                 DropdownMenuItem(
                                     text = { Text("History") },
-                                    leadingIcon = { Icon(painter = painterResource( R.drawable.history_svgrepo_com), contentDescription = null, modifier = Modifier.size(24.dp, 24.dp)) },
+                                    leadingIcon = { Icon(painter = painterResource(R.drawable.history_svgrepo_com), contentDescription = null, modifier = Modifier.size(24.dp, 24.dp)) },
                                     onClick = {
                                         showMenu = false
                                         showHistoryDialog = true
@@ -272,7 +280,7 @@ fun HomeScreen(navController: NavHostController, rootIndex: String, defaultIndex
                                 HorizontalDivider()
                                 DropdownMenuItem(
                                     text = { Text("Star on GitHub") },
-                                    leadingIcon = { Icon(painter = painterResource( R.drawable.github_svgrepo_com), contentDescription = null, modifier = Modifier.size(24.dp, 24.dp)) },
+                                    leadingIcon = { Icon(painter = painterResource(R.drawable.github_svgrepo_com), contentDescription = null, modifier = Modifier.size(24.dp, 24.dp)) },
                                     onClick = {
                                         showMenu = false
                                         viewModel.handleIntent(HomeContract.Intent.StarOnGitHub)

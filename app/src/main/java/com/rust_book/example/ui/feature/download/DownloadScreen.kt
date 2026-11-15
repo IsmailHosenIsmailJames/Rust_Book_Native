@@ -1,5 +1,6 @@
 package com.rust_book.example.ui.feature.download
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,10 +14,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -57,6 +62,10 @@ fun DownloadScreen(
 
     val state by viewModel.state.collectAsState()
 
+    BackHandler {
+        navController.popBackStack()
+    }
+
     LaunchedEffect(Unit) {
         viewModel.handleIntent(DownloadContract.Intent.StartDownload(language, downloadUrl))
     }
@@ -69,11 +78,23 @@ fun DownloadScreen(
         }
     }
 
-    DownloadContent(state = state)
+    DownloadContent(
+        state = state,
+        onRetry = {
+            viewModel.handleIntent(DownloadContract.Intent.Retry(language, downloadUrl))
+        },
+        onBack = {
+            navController.popBackStack()
+        }
+    )
 }
 
 @Composable
-private fun DownloadContent(state: DownloadContract.State) {
+private fun DownloadContent(
+    state: DownloadContract.State,
+    onRetry: () -> Unit,
+    onBack: () -> Unit
+) {
     val animatedProgress by animateFloatAsState(
         targetValue = state.progress,
         label = "ProgressAnimation"
@@ -98,50 +119,99 @@ private fun DownloadContent(state: DownloadContract.State) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            imageVector = if (state.stage == DownloadStage.Downloading)
-                                Icons.Default.Info else Icons.Default.Settings,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        when (state.stage) {
+                            is DownloadStage.Error -> {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = "Error",
+                                    modifier = Modifier.size(48.dp),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
 
-                        Text(
-                            text = if (state.stage == DownloadStage.Downloading)
-                                "Downloading ${state.language} Content" else "Extracting Files...",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
+                                Text(
+                                    text = "Download Failed",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                        Text(
-                            text = if (state.stage == DownloadStage.Downloading)
-                                "Please wait while we fetch the latest version." else "Setting up the offline book content.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                                Text(
+                                    text = state.errorMessage
+                                        ?: "An unexpected network error occurred. Please check your connection.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                                Spacer(modifier = Modifier.height(24.dp))
 
-                        LinearProgressIndicator(
-                            progress = { animatedProgress },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp),
-                            strokeCap = StrokeCap.Round,
-                        )
+                                Button(
+                                    onClick = onRetry,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Retry Download")
+                                }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                        Text(
-                            text = "${(state.progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                                OutlinedButton(
+                                    onClick = onBack,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Choose Another Language")
+                                }
+                            }
+                            else -> {
+                                val isDownloading = state.stage == DownloadStage.Downloading
+                                Icon(
+                                    imageVector = if (isDownloading) Icons.Default.Info else Icons.Default.Settings,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Text(
+                                    text = if (isDownloading)
+                                        "Downloading ${state.language} Content" else "Extracting Files...",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text(
+                                    text = if (isDownloading)
+                                        "Please wait while we fetch the book files." else "Setting up the offline book content.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                LinearProgressIndicator(
+                                    progress = { animatedProgress },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp),
+                                    strokeCap = StrokeCap.Round,
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text(
+                                    text = "${(state.progress * 100).toInt()}%",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
                 }
             }
